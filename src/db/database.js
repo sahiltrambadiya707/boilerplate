@@ -4,7 +4,6 @@ module.exports = async (logger) => {
   if (models) {
     global.models = models;
     logger.info('Database connections and models created successfully!');
-    console.log('models', models);
   } else {
     // If the connections and database models are not created, kill the process
     logger.error('Creating database connections and models failed!');

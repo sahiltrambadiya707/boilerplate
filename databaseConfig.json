@@ -1,17 +1,23 @@
 {
-    "MONGODB": {
-        "GLOBAL": {
-            "DATABASE": {
-                "DB_NAME": {
-                    "COLLECTION": {
-                        "TEST": "test",
-                        "TOKEN": "token"
-                    },
-                    "NAME": "db-name"
-                }
-            },
-            "URI": "mongodb+srv://nexuslink:nls65@@321@nexuslink.qldbdpb.mongodb.net/db-name?retryWrites=true&w=majority",
-            "USE_TEST_PIN": "true"
+  "MONGODB": {
+    "GLOBAL": {
+      "DATABASE": {
+        "DB_NAME": {
+          "COLLECTION": {
+            "TOKEN": "tokens",
+            "LOG": "log",
+            "AUTH0": "auth0",
+            "MODULE": "module",
+            "PERMISSION": "permission",
+            "ROLE": "role",
+            "USER": "users",
+            "ADMIN": "admin"
+          },
+          "NAME": "db-name"
         }
+      },
+      "URI": "mongodb+srv://nexuslink:nls65@@321@nexuslink.qldbdpb.mongodb.net",
+      "USE_TEST_PIN": "true"
     }
+  }
 }

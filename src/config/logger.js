@@ -1,6 +1,5 @@
 /**
  * Logger
- * Created by Bhargav Butani on 05.07.2021.
  */
 
 const _ = require('lodash');
@@ -10,7 +9,7 @@ const moment = require('moment-timezone');
 const os = require('os');
 const { createLogger, format, transports } = require('winston');
 
-const { NODE_ENV = 'development' } = process.env;
+const { NODE_ENV = 'development' } = require('./config');
 
 const timezone = 'Asia/Kolkata';
 

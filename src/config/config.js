@@ -35,8 +35,12 @@ if (error) {
 module.exports = {
   env: envVars.NODE_ENV,
   port: envVars.PORT,
+  APP_NAME: process.env.APP_NAME,
+  APP_RELEASE: process.env.APP_RELEASE,
+  APP_VERSION: process.env.APP_VERSION,
+  APP_ENVIRONMENT: process.env.APP_ENVIRONMENT,
   mongoose: {
-    url: envVars.MONGODB_URL + (envVars.NODE_ENV === 'test' ? '-test' : ''),
+    url: envVars.MONGODB_URL,
     options: {
       useCreateIndex: true,
       useNewUrlParser: true,

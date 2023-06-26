@@ -7,12 +7,27 @@ const validate = (schema) => (req, res, next) => {
   const validSchema = pick(schema, ['params', 'query', 'body']);
   const object = pick(req, Object.keys(validSchema));
   const { value, error } = Joi.compile(validSchema)
-    .prefs({ errors: { label: 'key' }, abortEarly: false })
+    .prefs({ errors: { label: 'key', wrap: { label: false } }, stripUnknown: false, abortEarly: false })
+    .messages({
+      'string.empty': '{#label} is required',
+    })
     .validate(object);
 
   if (error) {
-    const errorMessage = error.details.map((details) => details.message).join(', ');
-    return next(new ApiError(httpStatus.BAD_REQUEST, errorMessage));
+    const { details } = error;
+
+    let error_data = {};
+
+    /**
+     * Create Object of Errors
+     *
+     * e.g. { email: "email is required" }
+     */
+    details.filter((item) => {
+      error_data[item.context.key] = item.message;
+    });
+
+    return next(new ApiError(httpStatus.BAD_REQUEST, 'validation error', error_data));
   }
   Object.assign(req, value);
   return next();
