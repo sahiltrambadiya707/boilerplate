@@ -1,6 +1,3 @@
-/**
- * Created by Bhargav Butani on 06.07.2021.
- */
 const _ = require('lodash');
 const accepts = require('accepts');
 const crypto = require('crypto');
@@ -11,6 +8,7 @@ const bcrypt = require('bcryptjs');
 
 const logger = require('../config/logger');
 const { default: jwtDecode } = require('jwt-decode');
+const configuration = require('../config/config');
 
 //  const geocoder = require("node-geocoder")({
 //      provider: "google",
@@ -44,7 +42,7 @@ functions.config4hashes = {
 };
 
 /* create response-wrapper object */
-functions.createResponseObject = ({ req, result = 0, message = '', payload = {}, logPayload = false }) => {
+functions.createResponseObject = ({ req, result = 0, message = '', payload = {}, logPayload = false, code }) => {
   let payload2log = {};
   if (logPayload) {
     payload2log = flatten({ ...payload });
@@ -55,13 +53,13 @@ functions.createResponseObject = ({ req, result = 0, message = '', payload = {},
     (!_.isEmpty(message) ? `\n${message}` : '') +
     (!_.isEmpty(payload) && logPayload ? `\npayload: ${JSON.stringify(payload2log, null, 4)}` : '');
 
-  if (result < 0 && (result !== -50 || result !== -51)) {
-    logger.error(messageToLog);
-  } else if (!_.isEmpty(messageToLog)) {
-    logger.info(messageToLog);
-  }
+  // if (result < 0 && (result !== -50 || result !== -51)) {
+  //   logger.error(messageToLog);
+  // } else if (!_.isEmpty(messageToLog)) {
+  //   logger.info(messageToLog);
+  // }
 
-  return { result: result, message: message, payload: payload };
+  return { code: code, message: message, payload: payload };
 };
 
 /* Geocoding - convert address to geocodes */
@@ -148,16 +146,16 @@ functions.getLocale = (req) => {
 };
 
 /* Return true if the app is in production mode */
-functions.isLocal = () => process.env.APP_ENVIRONMENT.toLowerCase() === 'local';
+functions.isLocal = () => configuration.APP_ENVIRONMENT.toLowerCase() === 'development';
 
 /* Return true if the app is in production mode */
 functions.isProduction = () =>
-  process.env.APP_ENVIRONMENT.toLowerCase() === 'production' || process.env.APP_ENVIRONMENT.toLowerCase() === 'prod';
+  configuration.APP_ENVIRONMENT.toLowerCase() === 'production' || configuration.APP_ENVIRONMENT.toLowerCase() === 'prod';
 
 /* Return true if the app is in production mode */
-functions.isTest = () => process.env.APP_ENVIRONMENT.toLowerCase() === 'test';
+functions.isTest = () => configuration.APP_ENVIRONMENT.toLowerCase() === 'test';
 
-/* Mask a name to initials - e.g., change Bhargav Butani to A. B. */
+/* Mask a name to initials - e.g. */
 functions.maskName = (name) => {
   let maskedName = '';
   if (name) {
@@ -247,7 +245,7 @@ functions.sendMessage = async (parameters) => {
   //              return null;
   //          }
   //      } else {
-  //          logger.info(`No SMS are sent out in ${process.env.APP_ENVIRONMENT.toUpperCase()} environment`);
+  //          logger.info(`No SMS are sent out in ${configuration.APP_ENVIRONMENT.toUpperCase()} environment`);
   //          return null;
   //      }
   //  } else {

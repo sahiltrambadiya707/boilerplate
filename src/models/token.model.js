@@ -1,44 +1,48 @@
 const mongoose = require('mongoose');
-const { toJSON } = require('./plugins');
-const { tokenTypes } = require('../config/tokens');
 
-const tokenSchema = mongoose.Schema(
-  {
-    token: {
-      type: String,
-      required: true,
-      index: true,
+module.exports = (connection, collectionName) => {
+  const schema = mongoose.Schema(
+    {
+      auth0Id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'auth0',
+        required: true,
+      },
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'users',
+        required: true,
+      },
+      auth0: {
+        token: {
+          type: String,
+        },
+        expires: {
+          type: Number,
+        },
+        blacklisted: {
+          type: Boolean,
+          default: false,
+        },
+      },
+      local: {
+        token: {
+          type: String,
+        },
+        expires: {
+          type: Number,
+        },
+        blacklisted: {
+          type: Boolean,
+          default: false,
+        },
+      },
     },
-    user: {
-      type: mongoose.SchemaTypes.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    type: {
-      type: String,
-      enum: [tokenTypes.REFRESH, tokenTypes.RESET_PASSWORD, tokenTypes.VERIFY_EMAIL],
-      required: true,
-    },
-    expires: {
-      type: Date,
-      required: true,
-    },
-    blacklisted: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
+    {
+      timestamps: true,
+      autoCreate: true,
+    }
+  );
 
-// add plugin that converts mongoose to json
-tokenSchema.plugin(toJSON);
-
-/**
- * @typedef Token
- */
-const Token = mongoose.model('Token', tokenSchema);
-
-module.exports = Token;
+  return connection.model(collectionName, schema, collectionName);
+};

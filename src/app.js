@@ -1,10 +1,10 @@
 const express = require('express');
-const { loadConfigurationFromFile } = require('./config/configuration-loader');
 const initDataBase = require('./db/database');
 const os = require('os');
 const initMiddleware = require('./middlewares/middleware');
 const initRouter = require('./routes/v1/index');
 const http = require('http');
+const configuration = require('./config/config');
 
 global.config = {};
 global.limits = {};
@@ -16,30 +16,28 @@ const runServer = async () => {
   const logger = require('./config/logger');
   logger.info('Logger Initialized!');
 
-  await loadConfigurationFromFile(logger);
-
   // Init Database connection
   await initDataBase(logger);
 
   logger.info(`
-    APP_ENVIRONMENT: ${process.env.APP_ENVIRONMENT}
-    APP_NAME: ${process.env.APP_NAME}
-    APP_PORT: ${process.env.PORT}
-    APP_RELEASE: ${process.env.APP_RELEASE}
-    APP_VERSION: ${process.env.APP_VERSION}`);
+    APP_ENVIRONMENT: ${configuration.APP_ENVIRONMENT}
+    APP_NAME: ${configuration.APP_NAME}
+    APP_PORT: ${configuration.port}
+    APP_RELEASE: ${configuration.APP_RELEASE}
+    APP_VERSION: ${configuration.APP_VERSION}`);
 
   initMiddleware(app, logger);
   initRouter(app, logger);
 
   const server = http.createServer(app);
 
-  server.listen(process.env.PORT, async () => {
-    logger.info(`${process.env.APP_RELEASE} server STARTED on port: ${process.env.PORT}\n`);
-    await global.models.GLOBAL.LOG({
-      description: `${process.env.APP_RELEASE} server STARTED on port: ${process.env.PORT}`,
-      time: Date.now(),
-      parameters: {},
-    }).save();
+  server.listen(configuration.port, async () => {
+    logger.info(`${configuration.APP_RELEASE} server STARTED on port: ${configuration.port}\n`);
+    // await global.models.GLOBAL.LOG({
+    //   description: `${configuration.APP_RELEASE} server STARTED on port: ${configuration.port}`,
+    //   time: Date.now(),
+    //   parameters: {},
+    // }).save();
   });
 
   server.timeout = 120000;
@@ -58,8 +56,8 @@ const runServer = async () => {
       };
       const usageInPercent = Number((convertToMB(memoryData.heapUsed) * 100) / convertToMB(memoryData.heapTotal)).toFixed(2);
       const usageText = `${memoryUsage.rss}\n${memoryUsage.heapTotal}\n${memoryUsage.heapUsed}\n${memoryUsage.external}\nHeap usage is: ${usageInPercent}%`;
-      const msg = `\`${process.env.APP_ENVIRONMENT}\` \`${
-        process.env.APP_RELEASE
+      const msg = `\`${configuration.APP_ENVIRONMENT}\` \`${
+        configuration.APP_RELEASE
       }\` \`${os.hostname()}\` server *STOPPED* on *SIGINT*\`\`\`${usageText}\`\`\``;
       logger.error(msg.replace(/\//g, '').replace(/`/g, ''));
     });
@@ -77,8 +75,8 @@ const runServer = async () => {
       };
       const usageInPercent = Number((convertToMb(memoryData.heapUsed) * 100) / convertToMb(memoryData.heapTotal)).toFixed(2);
       const usageText = `${memoryUsage.rss}\n${memoryUsage.heapTotal}\n${memoryUsage.heapUsed}\n${memoryUsage.external}\nHeap usage is: ${usageInPercent}%`;
-      const msg = `\`${process.env.APP_ENVIRONMENT}\` \`${
-        process.env.APP_RELEASE
+      const msg = `\`${configuration.APP_ENVIRONMENT}\` \`${
+        configuration.APP_RELEASE
       }\` \`${os.hostname()}\` server *STOPPED* on *SIGINT*\`\`\`${usageText}\`\`\``;
       logger.error(msg.replace(/\//g, '').replace(/`/g, ''));
     });

@@ -1,99 +1,200 @@
-const httpStatus = require('http-status');
-const tokenService = require('./token.service');
-const userService = require('./user.service');
-const Token = require('../models/token.model');
+const axios = require('axios').default;
+const jwt = require('jsonwebtoken');
 const ApiError = require('../utils/ApiError');
-const { tokenTypes } = require('../config/tokens');
+const httpStatus = require('http-status');
+const messages = require('../../json/messages.json');
+const { generateToken, saveToken, addSecondInCurrentTimeForExpireTime } = require('../utils/auth.util');
 
-/**
- * Login with username and password
- * @param {string} email
- * @param {string} password
- * @returns {Promise<User>}
- */
-const loginUserWithEmailAndPassword = async (email, password) => {
-  const user = await userService.getUserByEmail(email);
-  if (!user || !(await user.isPasswordMatch(password))) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
+const login = async (req, res) => {
+  if (!req.query.code) {
+    const error = {
+      error: 'authorization_code not found',
+    };
+
+    // throw new ApiError(httpStatus.PERMANENT_REDIRECT, 'authorization_code not found');
+    return res.redirect(301, `${process.env.USER_PANEL_URL}/error/${JSON.stringify(error)}`);
   }
-  return user;
-};
 
-/**
- * Logout
- * @param {string} refreshToken
- * @returns {Promise}
- */
-const logout = async (refreshToken) => {
-  const refreshTokenDoc = await Token.findOne({ token: refreshToken, type: tokenTypes.REFRESH, blacklisted: false });
-  if (!refreshTokenDoc) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Not found');
-  }
-  await refreshTokenDoc.remove();
-};
-
-/**
- * Refresh auth tokens
- * @param {string} refreshToken
- * @returns {Promise<Object>}
- */
-const refreshAuth = async (refreshToken) => {
   try {
-    const refreshTokenDoc = await tokenService.verifyToken(refreshToken, tokenTypes.REFRESH);
-    const user = await userService.getUserById(refreshTokenDoc.user);
-    if (!user) {
-      throw new Error();
-    }
-    await refreshTokenDoc.remove();
-    return tokenService.generateAuthTokens(user);
+    const auth0TokenInfo = await auth_code_exchange_with_token(req.query.code);
+
+    const decodeAuth0IdToken = await decode_id_token(auth0TokenInfo?.id_token);
+
+    // const userData = await get_user_from_id_token(decodeAuth0IdToken.sub);
+
+    const refreshToken = await save_token_in_database({ decodeAuth0IdToken, auth0TokenInfo });
+
+    res.cookie('token', refreshToken, {
+      httpOnly: true,
+      maxAge: 31557600 * 1000,
+      secure: true,
+    });
+    res.cookie('isAuthenticated', true, {
+      maxAge: 31557600 * 1000,
+    });
+
+    return res.redirect(301, process.env.USER_PANEL_URL);
   } catch (error) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate');
+    return res.redirect(301, `${process.env.USER_PANEL_URL}/error/${error?.message}`);
   }
 };
 
-/**
- * Reset password
- * @param {string} resetPasswordToken
- * @param {string} newPassword
- * @returns {Promise}
- */
-const resetPassword = async (resetPasswordToken, newPassword) => {
+const auth_code_exchange_with_token = async (code) => {
+  const options = {
+    method: 'POST',
+    url: process.env.AUTH0_BASE_URL + '/oauth/token',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    data: new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: process.env.AUTH0_CLIENT_ID,
+      client_secret: process.env.AUTH0_CLIENT_SECRET,
+      code_verifier: process.env.AUTH0_CODE_VERIFIER,
+      code: code,
+      redirect_uri: process.env.AUTH0_REDIRECT_URL,
+    }),
+  };
+
   try {
-    const resetPasswordTokenDoc = await tokenService.verifyToken(resetPasswordToken, tokenTypes.RESET_PASSWORD);
-    const user = await userService.getUserById(resetPasswordTokenDoc.user);
-    if (!user) {
-      throw new Error();
-    }
-    await userService.updateUserById(user.id, { password: newPassword });
-    await Token.deleteMany({ user: user.id, type: tokenTypes.RESET_PASSWORD });
+    const response = await axios.request(options);
+    return response.data;
   } catch (error) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Password reset failed');
+    throw new Error(JSON.stringify(error?.response?.data));
   }
 };
 
-/**
- * Verify email
- * @param {string} verifyEmailToken
- * @returns {Promise}
- */
-const verifyEmail = async (verifyEmailToken) => {
+const decode_id_token = async (idToken) => {
+  const idTokenInfo = jwt.decode(idToken);
+
+  if (!idTokenInfo.email) {
+    const error = {
+      error: 'Email not found',
+    };
+    throw new Error(JSON.stringify(error));
+  }
+
+  return idTokenInfo;
+};
+
+const get_user_from_id_token = async (sub) => {
   try {
-    const verifyEmailTokenDoc = await tokenService.verifyToken(verifyEmailToken, tokenTypes.VERIFY_EMAIL);
-    const user = await userService.getUserById(verifyEmailTokenDoc.user);
-    if (!user) {
-      throw new Error();
+    const userDoc = await global.models.GLOBAL.AUTH0.findOne({ user_id: sub });
+
+    if (!userDoc) {
+      const error = {
+        error: 'User not found',
+      };
+      throw new Error(JSON.stringify(error));
     }
-    await Token.deleteMany({ user: user.id, type: tokenTypes.VERIFY_EMAIL });
-    await userService.updateUserById(user.id, { isEmailVerified: true });
+
+    return userDoc;
   } catch (error) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Email verification failed');
+    throw new Error(JSON.stringify(error?.response?.data));
+  }
+};
+
+const revoke_refresh_token = async (token) => {
+  const options = {
+    method: 'POST',
+    url: process.env.AUTH0_BASE_URL + '/oauth/revoke',
+    headers: { 'content-type': 'application/json' },
+    data: {
+      client_id: process.env.AUTH0_CLIENT_ID,
+      client_secret: process.env.AUTH0_CLIENT_SECRET,
+      token: token,
+    },
+  };
+  try {
+    const response = await axios.request(options);
+    return response.data;
+  } catch (error) {
+    throw new Error(JSON.stringify(error?.response?.data));
+  }
+};
+
+const save_token_in_database = async ({ decodeAuth0IdToken, auth0TokenInfo }) => {
+  const authId = decodeAuth0IdToken.sub;
+  let tokenDoc = await global.models.GLOBAL.TOKEN.findOne({ auth0Id: authId });
+
+  if (tokenDoc) {
+    if (tokenDoc?.auth0?.token) {
+      await revoke_refresh_token(tokenDoc.auth0.token);
+    }
+  }
+
+  const calculatedExpireTime = await addSecondInCurrentTimeForExpireTime(31557600);
+  const localToken = await generateToken(authId, calculatedExpireTime);
+
+  const reqData = {
+    auth0Id: authId,
+    auth0: {
+      token: auth0TokenInfo.refresh_token,
+      expires: calculatedExpireTime,
+      blacklisted: false,
+    },
+    local: {
+      token: localToken,
+      expires: calculatedExpireTime,
+      blacklisted: false,
+    },
+  };
+
+  try {
+    if (!tokenDoc) {
+      await saveToken(reqData);
+    } else {
+      tokenDoc.auth0 = reqData.auth0;
+      tokenDoc.local = reqData.local;
+      await tokenDoc.save();
+    }
+    return localToken;
+  } catch (error) {
+    throw new Error(JSON.stringify(error?.response?.data));
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    const tokenDoc = await global.models.GLOBAL.TOKEN.findOne({ auth0Id: req.user.auth0Id });
+    await revoke_refresh_token(tokenDoc.auth0.token);
+
+    const emptyDoc = {
+      token: '',
+      expires: 0,
+      blacklisted: false,
+    };
+
+    tokenDoc.auth0 = emptyDoc;
+    tokenDoc.local = emptyDoc;
+    await tokenDoc.save();
+
+    res.clearCookie('token');
+    res.clearCookie('isAuthenticated');
+    res.cookie('isAuthenticated', false);
+    return res.status(200).send('logout successfully');
+  } catch (error) {
+    console.log(error);
+    return res.status(400).send('error');
+  }
+};
+
+const retrieveAuth0UserData = async ({ authId }) => {
+  try {
+    const auth0UserDoc = await global.models.GLOBAL.AUTH0.findOne(
+      { user_id: authId },
+      {
+        email: 1,
+        nickname: 1,
+        picture: 1,
+      }
+    );
+    return auth0UserDoc;
+  } catch (error) {
+    throw new ApiError(httpStatus.BAD_REQUEST, messages.DATA_NOT_RETRIEVED);
   }
 };
 
 module.exports = {
-  loginUserWithEmailAndPassword,
+  login,
   logout,
-  refreshAuth,
-  resetPassword,
-  verifyEmail,
+  retrieveAuth0UserData,
 };

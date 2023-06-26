@@ -1,5 +1,5 @@
 const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
-const config = require('./config');
+const config = require('../config');
 
 const cookieExtractor = function (req) {
   let token = null;
@@ -17,8 +17,9 @@ const jwtOptions = {
 
 const jwtVerify = async (payload, done) => {
   try {
-    const user = await global.models.GLOBAL.USER.findById(payload.sub);
-    if (!user) {
+    const admin = await global.models.GLOBAL.ADMIN.findById(payload.sub);
+
+    if (!admin) {
       return done(null, false);
     }
 
@@ -26,7 +27,7 @@ const jwtVerify = async (payload, done) => {
       return done(null, false);
     }
 
-    done(null, user);
+    done(null, admin);
   } catch (error) {
     done(error, false);
   }

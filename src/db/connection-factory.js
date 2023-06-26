@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const Promise = require('bluebird');
 const logger = require('../config/logger');
 const mongoose = require('mongoose');
+const configuration = require('../config/config');
 
 /* ConnectionFactory */
 module.exports = function (config) {
@@ -31,11 +32,11 @@ module.exports = function (config) {
     } else {
       let connection = await mongoose.createConnection(
         // `${config.MONGODB[domain].URL}/${db.NAME}`, //* Change to dynamic when database will be live
-        `${process.env.MONGODB_URL}`,
+        `${configuration.mongoose.url}/${db.NAME}`,
         {
-          autoReconnect: true,
+          // autoReconnect: true,
+          // reconnectTries: Number.MAX_VALUE,
           promiseLibrary: Promise,
-          reconnectTries: Number.MAX_VALUE,
           useFindAndModify: false,
           useNewUrlParser: true,
           useCreateIndex: true,

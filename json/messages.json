@@ -1,0 +1,15 @@
+{
+  "VALIDATION": "validation",
+  "NOT_FOUND": "Sorry! The requested resource could not be found!",
+  "GENERAL": "Sorry! Something went wrong with the request. Please try again later.",
+  "SYSTEM_ERROR_MSG": "Something Went Wrong",
+  "DATA_INSERTED": "Document added successfully",
+  "DATA_FETCHED": "Document fetched successfully",
+  "DATA_UPDATED": "Document updated successfully",
+  "DATA_DELETED": "Document deleted successfully",
+  "DATA_NOT_CREATED": "Some error occurred while creating the document",
+  "DATA_NOT_RETRIEVED": "Some error occurred while retrieving the document",
+  "DATA_NOT_UPDATED": "Some error occurred while updating the document",
+  "DATA_NOT_DELETED": "Some error occurred while deleting the document",
+  "NOT_AUTHORIZED": "Sorry, you are not authorized to perform this action."
+}
